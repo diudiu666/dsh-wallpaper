@@ -1,0 +1,72 @@
+name: Bug report
+description: 壁纸不显示、显示不对、或安装失败 / wallpaper missing or wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先贴 `/dsh-wallpaper/status` 的输出——它已经包含平台、DSH home、找到的 Wallpaper Engine 路径及其来源、解析链每一步的结果、以及 python/RePKG 的可用性。
+        Please paste `/dsh-wallpaper/status` first — it already contains everything needed to triage.
+
+  - type: textarea
+    id: status
+    attributes:
+      label: /dsh-wallpaper/status output
+      description: |
+        `curl http://127.0.0.1:<DSH 端口>/dsh-wallpaper/status`
+        （端口在 DSH 窗口/日志里；也可以在插件目录执行 `DSH_WALLPAPER_SELFTEST_STATUS=1 node lib/index.js`）
+      render: json
+    validations:
+      required: true
+
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本 / DSH version
+      description: DSH Desktop 关于页里的版本号，例如 0.2.1-rc.2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统 / OS
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: dropdown
+    id: wallpaper-kind
+    attributes:
+      label: 当前桌面壁纸类型 / wallpaper kind
+      options:
+        - 视频 (mp4/webm)
+        - 场景 (scene.pkg)
+        - 图片
+        - 应用程序 (exe)
+        - 网页 / web
+        - 不确定 / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么 / what happened
+      description: 期望看到什么、实际看到什么；有没有控制台报错、DSH 启动时是否提示 skipped bundle。
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 已确认 / checked
+      options:
+        - label: 安装后完全退出并重启过 DSH Desktop（不是只关窗口）
+          required: true
+        - label: profile 的 `package.json` 里 `dsh.profile.bundles` 含 `dsh-wallpaper-diudiu`
+          required: false

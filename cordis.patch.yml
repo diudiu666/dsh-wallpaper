@@ -1,4 +1,6 @@
-# Makes dsh-wallpaper a profile LAYER so its client half joins the desktop bundle.
+# Makes dsh-wallpaper-diudiu a profile LAYER so its client half joins the
+# desktop bundle. The row id stays `dsh-wallpaper` so existing profile patches
+# that target it keep working; `name` must match the package name.
 - insert:
     - id: dsh-wallpaper
-      name: dsh-wallpaper
+      name: dsh-wallpaper-diudiu

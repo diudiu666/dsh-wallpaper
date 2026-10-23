@@ -1,7 +1,7 @@
 {
-  "name": "dsh-wallpaper",
-  "version": "0.1.3",
-  "description": "为 DSH Desktop 设置自定义背景图（壁纸）。Sets a custom background image (wallpaper) for DSH Desktop.",
+  "name": "dsh-wallpaper-diudiu",
+  "version": "0.2.0",
+  "description": "为 DSH Desktop 注入自定义壁纸，并自动跟随 Wallpaper Engine：自动定位 Steam/WE（注册表 + libraryfolders.vdf + 常见路径 + macOS/Linux 布局）。Custom wallpaper for the DSH desktop shell, following Wallpaper Engine with automatic installation discovery.",
   "type": "module",
   "main": "./lib/index.js",
   "files": [
@@ -11,17 +11,31 @@
     "README.md"
   ],
   "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diudiu666/dsh-wallpaper.git"
+  },
+  "homepage": "https://github.com/diudiu666/dsh-wallpaper#readme",
+  "bugs": {
+    "url": "https://github.com/diudiu666/dsh-wallpaper/issues"
+  },
   "keywords": [
     "dsh",
     "dsh-plugin",
     "deepseek-harness",
     "cordis",
     "wallpaper",
+    "wallpaper-engine",
+    "steam",
     "background",
     "desktop"
   ],
   "engines": {
     "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "pack:check": "node scripts/check-pack.mjs"
   },
   "exports": {
     ".": {

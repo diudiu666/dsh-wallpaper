@@ -1,0 +1,11 @@
+# Keep text files LF in the repository regardless of the host OS, so Windows
+# checkouts (core.autocrlf) and CI diffs stay identical.
+* text=auto eol=lf
+
+# Binaries must never be diffed or line-ending converted.
+*.exe binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary

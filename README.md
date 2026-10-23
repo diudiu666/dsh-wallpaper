@@ -1,121 +1,189 @@
-# dsh-wallpaper
+# dsh-wallpaper-diudiu
 
-为 DSH Desktop 设置自定义背景图（壁纸）。通过向桌面客户端注入一小段 CSS，把三栏面板改为半透明，让背景图从窗口透出。
+给 **DSH Desktop** 加一张自定义背景壁纸：往桌面客户端注入一小段 CSS，把三栏面板改成半透明，让壁纸从窗口透出来；壁纸默认**自动跟随 Wallpaper Engine**（动态视频墙纸直接播、场景壁纸解包取高清静帧）。
+
+> ⚠️ **这不是 npm 上的 `dsh-wallpaper`。** 那个包（作者 `codeMonkey-Pine` / `mokeycoding`，Apache-2.0，TypeScript 实现）与本项目是两个独立项目，只是主题相同。本项目的包名是 `dsh-wallpaper-diudiu`，仓库是 <https://github.com/diudiu666/dsh-wallpaper>。
+
+## 特性
+
+- **自动找 Wallpaper Engine**：不再假定 `C:\Program Files (x86)\Steam\...`——依次查注册表、Steam 的 `libraryfolders.vdf`（多盘/多库）、常见安装位置、macOS/Linux 布局（见[它怎么找 WE](#它怎么找-wallpaper-engine)）。
+- **跟随桌面壁纸**：视频墙纸（mp4/webm）直接内联播放并支持 seek；场景墙纸（`scene.pkg`）解包取 1929×1080 级别的高清静帧；图片墙纸原样使用；其它类型取 `preview.*` 封面。
+- **四档透明度**：面板 / 表面 / 弹层 / 强调色分档（`--dsh-wallpaper-tint` 等），亮壁纸也能保证正文可读。
+- **失败可诊断**：`GET /dsh-wallpaper/status` 说明「找到了什么、试过什么、哪一步失败」，不用猜。
+- **零运行时依赖**：不引入任何 npm 包；可选能力（抽帧、解包）缺失时自动降级。
 
 ## 安装
 
+装到 **desktop** profile（客户端半边是给桌面三栏用的）。安装后**完全退出 DSH Desktop 再打开**；背景没出现时按一次 `Ctrl+Shift+R`。
+
 ```bash
-dsh plugin --profile desktop add C:\Users\diu\.dsh\plugins\dsh-wallpaper
+# 1) 直接从 GitHub 安装
+dsh plugin --profile desktop add https://github.com/diudiu666/dsh-wallpaper
+
+# 2) 或先打包再装（离线机器、内网分发）
+git clone https://github.com/diudiu666/dsh-wallpaper && cd dsh-wallpaper
+npm pack                                  # -> dsh-wallpaper-diudiu-0.2.0.tgz
+dsh plugin --profile desktop add ./dsh-wallpaper-diudiu-0.2.0.tgz
 ```
 
-安装后**完全退出并重新打开 DSH Desktop**（插件在启动时打包进客户端，必须重启）。若背景未出现，再按 `Ctrl+Shift+R` 强制刷新一次。
+`dsh` 是 DSH Desktop 自带的 CLI：
 
-## 兼容性（harness ≥ 0.2）
+```powershell
+& "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add <spec>
+```
 
-新版桌面端改成了 React 三栏 `AppFrame`，面板类名是 CSS Modules 哈希（`BynINW_frame` / `BynINW_sidebarCol` / `BynINW_centerCol` / `BynINW_rightbarCol` / `BynINW_overlayLayer`），所以旧版钩子（`.dshDesktopFrame`、`.dshDesktopSidebarSurface`、`[data-dsh-desktop-mode]` …）在新界面上**一个都匹配不到**，遮罩规则全部失效——这就是壁纸“突然不显示”的原因。0.1.1 起改用三层钩子：
+卸载：`dsh plugin --profile desktop remove dsh-wallpaper-diudiu`（会同时清掉 profile 里的依赖与 bundle 选择）。
 
-1. **结构钩子**：`:is(div:has(> [data-rightbar-col]), div:has(> [data-shell-overlay]))` 精确命中外层 frame（不依赖类名）；
-2. **类名后缀钩子**：`[class*="_centerCol"]` / `[class*="_sidebarCol"]` / `[class*="_rightbarCol"]`（哈希变了也不会失效，这三个后缀经全量脚本扫描确认全局唯一）；
-3. **旧版钩子**：`.dshDesktop*` 保留，向下兼容老版本。
+## 安装后没有背景？
 
-> ⚠️ 不要用 `[class*="_frame"]`：另有 14 个模块自带 `*_frame` 类（聊天、附件、子智能体、提问卡片、侧栏浏览器、文档预览、web 前端…），用它会误伤这些组件的背景。0.1.2 已改为上面的结构锚点。
+先看诊断接口，90% 的问题一眼就能定位：
 
-同时必须把 `body` / `#root` 强制透明（新版外壳给它们画了不透明底色，会盖住 `z-index:-1` 的 `<video>`），并把 overlay 层（`[data-shell-overlay]`）里的令牌重新调回近不透明，保证菜单/弹窗/设置页仍然清晰可读。
+```bash
+curl http://127.0.0.1:<DSH 端口>/dsh-wallpaper/status
+```
 
-> 自 0.2 起 harness 带 `client-hmr`：**改完 `lib\client.js` 保存后，已打开的窗口会自动热替换（几秒内生效），一般不需要重启**；没生效再按 `Ctrl+Shift+R`。
+它返回 `we.found` / `we.source` / `we.configPath`（找到没有、从哪儿找到的）、`selected`（最终选中的文件）、`trace`（每一步的成功/失败原因）、`tools`（`python`+opencv、RePKG 是否可用）。
 
-## 换图（无需重启）
+| 症状 | 常见原因 | 处理 |
+| --- | --- | --- |
+| 界面变半透明深色，没有壁纸 | 没找到 WE，也没配 `image` | 看 `status.we.found`；配 `config.json` 的 `image` 或放 `image.png` |
+| `we.found=true` 但没有背景 | WE 当前壁纸是 `exe` 类型（无静态素材） | 换视频/图片/场景壁纸，或手动 `image` |
+| 场景墙纸显示低清封面 | RePKG 解包失败（非 Windows / 文件损坏） | 看 `status.tools.scene`；换视频壁纸 |
+| 视频壁纸不播，只有静帧 | `videoLive:false`，或编码不被 Chromium 支持 | 改回 `videoLive:true`，或用 H.264 的 mp4 |
+| 文字看不清 | 壁纸偏亮 | 调大 `--dsh-wallpaper-tint`（见下） |
+| `config-we-path: MISS` | 你写的 `weConfigPath` 不存在 | 删掉该键走自动探测，或改成正确路径 |
 
-1. 编辑 `C:\Users\diu\.dsh\wallpaper\config.json`，把 `image` 改成你要的图片绝对路径（Windows 路径用双反斜杠 `\\`）；
-2. 或在 `C:\Users\diu\.dsh\wallpaper\` 下放一张 `image.png`（会覆盖 config 之外再作为备选）。
-3. 在窗口里 `Ctrl+Shift+R` 刷新即可。
+## 配置
 
-默认使用：`C:\Users\diu\Pictures\111111\3ff502b2-0755-446e-8f47-aec55342648a.png`
-
-## 跟随 Wallpaper Engine 同步（默认开启）
-
-每次请求都会实时读取 WE 的 `config.json`（`C:\Program Files (x86)\Steam\steamapps\common\wallpaper_engine\config.json`），自动跟随桌面当前壁纸：
-
-- 壁纸是 **mp4/webm 视频** → **直接播放！** 客户端注入 `<video>` 元素（静音循环），背景和桌面一样是动态画面；服务端带 Range 支持（可拖拽/seek）。**这是推荐类型**——动态 + 原画清晰（实测 4K）
-- 壁纸是**图片**（jpg/png/webp 等）→ 直接用它；
-- 壁纸是其他视频（mov/avi/mkv）→ 用 `python scripts\frame.py`（cv2）抽一帧原画当静态图，缓存到 `<DSH_HOME>\wallpaper\cache\`；
-- 壁纸是 **scene.pkg 场景** → **用 RePKG 解包**（`scripts\repkg\RePKG.exe`）提取高清背景素材图（实测 1929×1080 / 2602×2000 / 2196×2040），缓存到 `<DSH_HOME>\wallpaper\cache\scene_<md5>\`；选图规则：文件名含 `背景/bg/background/backdrop` 优先，否则取分辨率最大的 png；解包失败才回退 `preview.*` 封面（低清 gif 会糊）
-  - **注意**：解包得到的是**静态素材**（场景里的动态特效/动画是 WE 实时渲染的，无法静态化；WE 渲染画面无窗口无 DC 可抓，实测抓不到）——scene 壁纸在 DSH 里是高清静态图；想要动态背景请用视频壁纸
-- 壁纸是 **exe**（应用程序类）→ 用同目录 `preview.*` 封面图；
-- 路径失效时自动在 `workshop\downloads\` 下按 item id 找回退；
-- 全都失败 → 回退到下面的手动 `image` 模式。
-
-服务端路由：
-- `/dsh-wallpaper/wallpaper.type` → `{kind:"video"|"image", url}`，客户端据此决定建 `<video>` 还是用 CSS 背景
-- `/dsh-wallpaper/wallpaper.mp4` → 视频文件（Range 支持）
-- `/dsh-wallpaper/wallpaper.png` → 静态图（视频壁纸时返回抽帧帧兜底）
-
-可用配置键（都写在 `C:\Users\diu\.dsh\wallpaper\config.json`，可选）：
+全部可选，写在 `<DSH_HOME>/wallpaper/config.json`（Windows 一般是 `C:\Users\<你>\.dsh\wallpaper\config.json`）：
 
 ```json
 {
-  "weSync": true,          // false 关闭 WE 同步，改用手动 image
-  "weConfigPath": "...",   // 覆盖 WE config.json 路径（一般不用）
-  "monitor": "Monitor0",   // 跟随 WE 的哪个显示器（缺省取第一个）
-  "pythonCmd": "python",   // mov/avi/mkv 视频抽帧用的 python 解释器（需装有 opencv）
-  "image": "C:\\...\\manual.png"  // WE 同步失败时的回退图
+  "weSync": true,
+  "weConfigPath": "D:\\SteamLibrary\\steamapps\\common\\wallpaper_engine\\config.json",
+  "monitor": "Monitor0",
+  "videoLive": true,
+  "pythonCmd": "python",
+  "repkgPath": "C:\\tools\\RePKG.exe",
+  "image": "D:\\pics\\my-wallpaper.jpg"
 }
 ```
 
-> 多显示器：`monitor` 指定跟随 WE 的哪块屏。**想让 DSH 背景是动态视频，就把该屏的壁纸换成 mp4 视频**；scene.pkg 场景壁纸现在会解包显示高清静态背景（比低清封面好得多），但场景的动态特效无法静态化。
-
-## 调节清晰度（0.1.2：四档透明度）
-
-现在**所有**面板都能透出壁纸，亮度由 4 个变量控制，都写在注入的 CSS 里（`lib\client.js` 的 `WALLPAPER_CSS`，改完保存即热替换）：
-
-| 变量 | 默认 | 控制的区域 |
+| 键 | 默认 | 说明 |
 | --- | --- | --- |
-| `--dsh-wallpaper-tint` | `23%` | **面板层**：整个窗口背景 + 左/中/右三栏（frame 和三栏各叠一层，所以面板实际不透明度 ≈ `1-(1-t)²`：`23%` → 约 `41%`） |
-| `--dsh-wallpaper-surface-tint` | `55%` | **内容表面**：气泡、输入框、代码块（含标题条）、工具卡片、设置卡片、菜单、Toast、提示条、diff 行与行号、滚动条滑块等 46 个令牌（含「已编辑 N 个文件」卡片与文件列表，见下） |
-| `--dsh-wallpaper-overlay-tint` | `88%` | **弹层**：菜单/对话框/设置页（它们是 frame 的子层，所以单独调回近不透明） |
-| `--dsh-wallpaper-solid-tint` | `100%` | **强调色/按钮填充**（主按钮、状态标签、开关等 11 个令牌）；默认 100% = 不变，调小可做成“毛玻璃按钮” |
+| `weSync` | `true` | 关闭后完全不碰 WE，只用 `image` / `image.png` |
+| `weConfigPath` | 自动探测 | 显式指定 WE 的 `config.json`（或 WE 安装目录）；写错时仍会回退自动探测，并在 `/status` 记一条 `config-we-path: MISS` |
+| `monitor` | 第一个显示器 | 多屏时跟随哪一块 WE 屏幕，如 `Monitor1` |
+| `videoLive` | `true` | `false` 时视频壁纸改为抽一帧当静态图（省 GPU，防闪退） |
+| `pythonCmd` | `python` | mov/avi/mkv 抽帧用的解释器，需要 `opencv-python` |
+| `repkgPath` | 内置 | 覆盖 `scripts/repkg/RePKG.exe` |
+| `image` | 无 | 静态兜底图绝对路径（Windows 用双反斜杠） |
 
-- 调小 = 背景更清晰、文字可读性下降；调大 = 更接近纯色。
-- **必须写百分号**：数值是被塞进 `color-mix()` 的百分比，写成 `55` 会让整条声明失效（表面变全透明）。
-- 实现方式：在 `<body>` 上把所有会画成实底的主题令牌**快照**一份（`--dsh-wp-*`），再在 frame 内用 `color-mix(in srgb, <快照> <tint>, transparent)` 替换。着色令牌的**不用 `!important`**（自定义属性继承，组件自己声明的同名令牌仍然优先），所以不会有 `!important` 打架的问题。
-- 明确**不改**的令牌：文字色、边框色、遮罩、骨架屏、hover 洗色（本来就是半透明或文字色），以及主题里根本没定义的 7 个（`bg-layer-4`、`bg-l1/l2`、`fill-l1/l2/tertiary`、`fill-tsp-secondary`，它们的用处本来就是透明，硬套会反而变暗）。
+也可以直接把图放到 `<DSH_HOME>/wallpaper/image.png`，优先级低于 `image`、高于"什么都没有"。
 
-### 0.1.3：「已编辑 17 个文件」/ 改动文件面板
+### 透明度
 
-这一块原来**绕过了令牌替换**：面板自己声明了局部变量，例如
+在注入的 CSS 里（`lib/client.js` 的 `WALLPAPER_CSS`，改完保存大部分情况会热替换）：
 
-```css
-.kuvljq_card   { --changes-fill: var(--dsw-static-neutral-850); }   /* 暗色 #212123，实底 */
-.kuvljq_header { background: var(--changes-fill); height: 60px; }   /* “已编辑 N 个文件” 横条 */
-.flL80G_root   { --deliverable-fill: var(--dsw-static-neutral-850); }
-.flL80G_file   { background: var(--deliverable-fill); height: 60px; } /* 文件列表每行 60px */
+| 变量 | 默认 | 控制 |
+| --- | --- | --- |
+| `--dsh-wallpaper-tint` | `23%` | 面板层（窗口背景 + 三栏）；**亮壁纸只靠它调**，提到 `42%` 左右正文就能读 |
+| `--dsh-wallpaper-surface-tint` | `55%` | 内容表面：气泡、输入框、代码块、卡片、菜单、toast、diff 行等 |
+| `--dsh-wallpaper-overlay-tint` | `88%` | 弹层：菜单/对话框/设置页 |
+| `--dsh-wallpaper-solid-tint` | `100%` | 强调色/主按钮填充（`100%` = 不变） |
+
+数值是塞进 `color-mix()` 的百分比，**必须带 `%`**。
+
+## 它怎么找 Wallpaper Engine
+
+`lib/locate.js` 按可信度逐个尝试，第一个命中的生效（`/status` 会告诉你命中的是哪一个）：
+
+1. `config.json` 里的 `weConfigPath`；
+2. 环境变量 `DSH_WALLPAPER_WE_CONFIG`；
+3. Windows 注册表：`HKCU\Software\Valve\Steam` → `SteamPath`，`HKLM\SOFTWARE\WOW6432Node\Valve\Steam` → `InstallPath`；
+4. 每个 Steam 根下的 `steamapps\libraryfolders.vdf` → **所有** Steam 库（Steam 在 D 盘、WE 装在第二个库都能找到）；
+5. 常见默认位置：`%ProgramFiles(x86)%\Steam`、`%ProgramFiles%\Steam`、各盘 `\Steam`、`\SteamLibrary`、`\Games\Steam` …；
+6. macOS：`~/Library/Application Support/Steam/...`；Linux：`~/.steam/steam/...`、`~/.local/share/Steam/...`。
+
+找到 `config.json` 之后的传输链：`weSync` → `image` → `image.png` → **什么都没有**（`kind:"none"`，图片路由 404 并指向 `/status`）。不会再有"回退到作者机器上的某个路径"这种行为。
+
+## HTTP 路由
+
+| 路由 | 说明 |
+| --- | --- |
+| `GET /dsh-wallpaper/wallpaper.type` | `{ kind: "video" \| "image" \| "none", url }`，客户端据此决定建 `<video>` 还是用 CSS 背景 |
+| `GET /dsh-wallpaper/wallpaper.mp4` | 视频文件，支持 `Range`（206/416）与 `HEAD` |
+| `GET /dsh-wallpaper/wallpaper.png` | 静态图（视频壁纸时返回抽帧结果） |
+| `GET /dsh-wallpaper/status` | 诊断 JSON（提 issue 请贴这个） |
+
+## 兼容性
+
+- **DSH**：`engines.dsh >= 0.1.5-rc.1`（客户端钩子适配 harness ≥ 0.2 的 React 三栏 `AppFrame`；`body` / `#root` 强制透明以露出 `z-index:-1` 的 `<video>`）。
+- **平台**：Windows 功能完整。macOS/Linux 能跑（CSS 与视频链路与平台无关），但 `scene.pkg` 解包依赖 Windows 版 RePKG，会降级为封面图；`/status` 里 `tools.scene` 会标 `unsupported-platform`。
+- **可选依赖**：`python` + `opencv-python`（mov/avi/mkv 抽帧）。缺了只是少一条路径，不会报错。
+
+## 开发
+
+```bash
+npm test            # node --test：定位器 / 解析链 / HTTP 路由，25 个用例
+npm run pack:check  # 校验 npm pack 产物包含全部运行时文件
 ```
 
-局部声明**永远优先于继承值**，所以改 `--dsw-alias-*` 够不到它。办法是把**上游的调色板令牌**（`--dsw-static-neutral-50 / -100 / -800 / -850`）本身放进 frame 作用域替换——局部变量在组件上求值，取到的就是替换后的半透明值：
+单文件自检（不启动 DSH）：
 
-```css
-:is(div:has(> [data-rightbar-col]), …) { --dsw-static-neutral-850: color-mix(in srgb, #212123 55%, transparent); }
+```bash
+DSH_WALLPAPER_SELFTEST=1 node lib/index.js           # 解析结果 + 每步 trace
+DSH_WALLPAPER_SELFTEST_STATUS=1 node lib/index.js    # 完整 status 文档
+DSH_WALLPAPER_SELFTEST_SCENE=<a.pkg> node lib/index.js
+DSH_WALLPAPER_SELFTEST_VIDEO=<a.mkv> node lib/index.js
 ```
 
-同时新纳入 surface 档的还有：`--dsw-alias-bg-multi-select`（多选行底色）、`--dsw-alias-file-diff-added-gutter` / `-deleted-gutter`（diff 行号列底色）、4 个滚动条滑块令牌（`--dsw-alias-scrollbar-bg-l1/l2`、`-hover-l1/l2`）。**`--dsw-static-neutral-00` 故意不动**：它同时是图标/文字颜色，而它仅有的两处背景用法写的就是 `color-mix(… 50%, transparent)`，本来就透。
+目录结构：
 
-实测（离线复刻，预置暗色主题 + 真实主题令牌 + 真实 layout CSS + mock 三栏 DOM）：
+```
+lib/index.js    插件入口：注册 4 个路由
+lib/client.js   客户端注入（CSS + <video>），非 ESM、由 harness 的模块加载器加载
+lib/locate.js   WE/Steam 定位（纯函数 + 依赖注入，可单测）
+lib/resolve.js  解析链
+lib/scene.js    scene.pkg 解包
+lib/frame.js    视频抽帧
+lib/serve.js    文件/视频（Range）响应
+lib/status.js   /status 诊断文档
+lib/config.js   配置读取与规范化
+```
 
-| 表面 | 修复前 | 修复后 |
-| --- | --- | --- |
-| `.kuvljq_header`「已编辑 N 个文件」 | `#212123` 实底 | `rgba(33,33,35,.55)` |
-| `.flL80G_file` 文件行 | `#212123` 实底 | `rgba(33,33,35,.55)` |
-| `._0SbxAa_add` / `_del` diff 行 | 实底 | `.55` |
-| `._0SbxAa_add ._0SbxAa_number` 行号列 | 实底 | `.55` |
-| `.kuvljq_tile` 预览小图 | 白 5% | 白 5%（原本就透） |
+贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-想要更透就把 `--dsh-wallpaper-surface-tint` 调小（这一块全归它管）。
+## 许可
 
+[BSD-3-Clause](LICENSE)。内置的 `scripts/repkg/RePKG.exe` 及其第三方组件（CommandLineParser、K4os.Compression.LZ4、Newtonsoft.Json、ImageSharp、DXT 解压代码）各自遵循 MIT，全文见 `scripts/repkg/THIRD-PARTY-NOTICES.txt`。
 
-> 亮壁纸的注意：**面板层（聊天正文、侧栏项之间那片空白）只叠到约 41%**，如果壁纸偏亮，直接画在面板上的白字对比度会不足（实测纯白壁纸时约 2.6:1）。把 `--dsh-wallpaper-tint` 提到 `42%`（叠加约 66%，实测 5.9:1）即可恢复可读性——**这一层只能靠 `--dsh-wallpaper-tint` 修，surface/overlay 两档帮不上忙**（它们只影响卡片、输入框、菜单等“浮起来的表面”）。视频壁纸遇到亮场景同理。
->
-> 实测（纯白壁纸 + 本机 1440×900 预览，白字对比度）：面板 41% → 2.6:1；卡片/输入框/代码块（叠加 surface 55%）→ 73~93% → 5.9~10.9:1；菜单/弹窗（叠加 overlay 88%）→ 83~90% → 10.7~14:1。所以暗色壁纸用默认值就很清楚，亮壁纸只需动第一个变量。
+---
 
-## 可选：毛玻璃效果
+## English
 
-把 `lib\client.js` 里 `_centerCol` 那段 `backdrop-filter: blur(8px)` 的注释去掉，中央面板背后会产生毛玻璃模糊。
+Custom wallpaper for the **DSH Desktop** shell: injects CSS that makes the three
+columns translucent so a wallpaper shows through, and by default follows
+**Wallpaper Engine** (live video wallpapers play inline, scene `.pkg` wallpapers
+are unpacked to a high-resolution still, images are served as-is).
+
+Not to be confused with the npm package `dsh-wallpaper` by `codeMonkey-Pine` —
+this project is `dsh-wallpaper-diudiu` and lives at
+<https://github.com/diudiu666/dsh-wallpaper>.
+
+```bash
+dsh plugin --profile desktop add https://github.com/diudiu666/dsh-wallpaper
+```
+
+Restart DSH Desktop completely afterwards. If nothing shows up, read
+`GET /dsh-wallpaper/status`: it reports the discovered Wallpaper Engine path,
+every path that was tried, the resolution trace, and which optional tool
+(`python` + opencv, RePKG) is missing.
+
+Wallpaper Engine is located through the Windows registry (`SteamPath` /
+`InstallPath`), every Steam library listed in `steamapps/libraryfolders.vdf`,
+well-known install locations, and the macOS/Linux Steam layouts — never through
+a hard-coded `C:\Program Files (x86)\...`.
+
+License: BSD-3-Clause (bundled RePKG binary: MIT third-party components, see
+`scripts/repkg/THIRD-PARTY-NOTICES.txt`).
