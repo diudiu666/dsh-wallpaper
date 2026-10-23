@@ -1,0 +1,4 @@
+# Makes dsh-wallpaper a profile LAYER so its client half joins the desktop bundle.
+- insert:
+    - id: dsh-wallpaper
+      name: dsh-wallpaper

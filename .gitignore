@@ -1,0 +1,11 @@
+# 依赖与构建产物
+node_modules/
+
+# 打包产物（发布用 npm pack 生成，不入库）
+*.tgz
+*.zip
+
+# 系统/编辑器杂项
+.DS_Store
+Thumbs.db
+*.log
