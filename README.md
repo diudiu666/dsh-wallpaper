@@ -16,14 +16,16 @@
 
 装到 **desktop** profile（客户端半边是给桌面三栏用的）。安装后**完全退出 DSH Desktop 再打开**；背景没出现时按一次 `Ctrl+Shift+R`。
 
+> ⚠️ **如果首次启动就失败**（对话框报 `web boot: 1 entry did not activate`），**先不要点**「禁用第三方插件、备份 profile patch 并重启」：那个按钮会把插件从 `dsh.profile.bundles` 里删掉、并重写 `cordis.patch.yml`，而且**不会真的留下备份文件**（文案与实际行为不符）。先对照下面的[排查表](#安装后没有背景)。
+
 ```bash
 # 1) 直接从 GitHub 安装
 dsh plugin --profile desktop add https://github.com/diudiu666/dsh-wallpaper
 
 # 2) 或先打包再装（离线机器、内网分发）
 git clone https://github.com/diudiu666/dsh-wallpaper && cd dsh-wallpaper
-npm pack                                  # -> dsh-wallpaper-diudiu-0.2.0.tgz
-dsh plugin --profile desktop add ./dsh-wallpaper-diudiu-0.2.0.tgz
+npm pack                                  # -> dsh-wallpaper-diudiu-0.2.1.tgz
+dsh plugin --profile desktop add ./dsh-wallpaper-diudiu-0.2.1.tgz
 ```
 
 `dsh` 是 DSH Desktop 自带的 CLI：
@@ -46,6 +48,8 @@ curl http://127.0.0.1:<DSH 端口>/dsh-wallpaper/status
 
 | 症状 | 常见原因 | 处理 |
 | --- | --- | --- |
+| 启动失败，对话框报 `web boot: 1 entry did not activate` / `dsh-wallpaper-diudiu: import failed` | 0.2.0 的 `lib/client.js` 用 cordis 行 id（`dsh-wallpaper`）注册，而 harness 以**包名**（`dsh-wallpaper-diudiu`）作为客户端模块行的键，行永远等不到工厂，loader 重放 bundle 后撞上 `duplicate factory registration for "dsh-wallpaper"` | 升级到 ≥ 0.2.1；这一行已按包名注册，并有回归测试钉住 |
+| 点过崩溃对话框的「禁用第三方插件、备份 profile patch 并重启」之后插件彻底不生效 | 该按钮把 `dsh-wallpaper-diudiu` 从 `dsh.profile.bundles` 移除，并重写 `cordis.patch.yml`（实测不会生成备份文件，自定义条目会丢） | 把 `"dsh-wallpaper-diudiu"` 加回 `dsh.profile.bundles`，或重跑 `dsh plugin --profile desktop add …` |
 | 界面变半透明深色，没有壁纸 | 没找到 WE，也没配 `image` | 看 `status.we.found`；配 `config.json` 的 `image` 或放 `image.png` |
 | `we.found=true` 但没有背景 | WE 当前壁纸是 `exe` 类型（无静态素材） | 换视频/图片/场景壁纸，或手动 `image` |
 | 场景墙纸显示低清封面 | RePKG 解包失败（非 Windows / 文件损坏） | 看 `status.tools.scene`；换视频壁纸 |
@@ -125,7 +129,7 @@ curl http://127.0.0.1:<DSH 端口>/dsh-wallpaper/status
 ## 开发
 
 ```bash
-npm test            # node --test：定位器 / 解析链 / HTTP 路由，25 个用例
+npm test            # node --test：定位器 / 解析链 / HTTP 路由 / 客户端 bundle 契约，27 个用例
 npm run pack:check  # 校验 npm pack 产物包含全部运行时文件
 ```
 

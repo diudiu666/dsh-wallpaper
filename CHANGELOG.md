@@ -19,6 +19,16 @@ All notable changes to this project are documented here. Format follows
   registers under the package name, and a regression test keeps the two from
   drifting apart again.
 
+### Changed
+
+- `npm test` runs the suite by directory (`node --test test`) instead of
+  `node --test "test/*.test.js"`. Node does not expand globs and Windows shells
+  do not either, so the old script stopped with `Could not find
+  '…\test\*.test.js'` before running a single case.
+- README: the troubleshooting table now quotes the 0.2.0 boot failure verbatim,
+  and the install section warns that the crash dialog's "disable third-party
+  plugins" button edits the profile without keeping the backup it advertises.
+
 ## [0.2.0] — 2026-10-23
 
 The open-source-readiness release: the plugin now works on a machine that is
