@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-10-24
+
+### Fixed
+
+- **Enabling the plugin could fail the whole DSH boot.** `lib/client.js`
+  registered the browser bundle as `dsh-wallpaper` — the cordis row id — while
+  the harness keys each client module row by the *package* name
+  (`dsh-wallpaper-diudiu`). The row was therefore never answered, the loader
+  replayed the bundle, and the replay hit the module system's
+  duplicate-registration guard, so the entry was reported as
+  `web boot: 1 entry did not activate`
+  (`duplicate factory registration for "dsh-wallpaper"`). The bundle now
+  registers under the package name, and a regression test keeps the two from
+  drifting apart again.
+
 ## [0.2.0] — 2026-10-23
 
 The open-source-readiness release: the plugin now works on a machine that is
