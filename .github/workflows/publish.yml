@@ -1,0 +1,52 @@
+name: publish
+
+# Publishing needs an npm credential, so it never runs implicitly:
+#   * push a `v*` tag, or
+#   * run this workflow manually from the Actions tab.
+#
+# One-time setup: add a repository secret named NPM_TOKEN holding an npm
+# **Automation** token (npmjs.com -> Access Tokens -> Generate New Token ->
+# Automation). Automation tokens bypass the interactive OTP prompt, which is
+# what a CI runner needs. Never use a password or a "Publish" token that
+# requires 2FA here.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: guard - the tag must match package.json
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "tag v$tag does not match package.json version $version" >&2
+            exit 1
+          fi
+
+      - name: unit tests
+        run: node --test test
+
+      - name: packaging guard
+        run: node scripts/check-pack.mjs
+
+      - name: publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

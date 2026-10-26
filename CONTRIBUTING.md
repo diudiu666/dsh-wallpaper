@@ -46,6 +46,28 @@ npm run pack:check  # must pass (tarball contains every runtime file)
 - Commit messages: `feat:`, `fix:`, `test:`, `docs:`, `chore:` — one logical
   change per commit.
 
+## Releasing
+
+Publishing happens in CI (`.github/workflows/publish.yml`) so no credential ever
+sits in a working tree:
+
+1. Bump `version` in `package.json` and add a CHANGELOG entry in the same commit.
+2. Push that commit to `main`, then push a matching tag: `git tag v0.2.2 &&
+   git push origin v0.2.2`.
+3. The workflow re-runs the tests and the packaging guard, checks that the tag
+   equals `package.json#version`, then runs `npm publish --provenance`.
+
+One-time setup: a repository secret `NPM_TOKEN` holding an npm **Automation**
+token (npmjs.com → Access Tokens → Generate New Token → Automation). Automation
+tokens skip the interactive OTP prompt, which a runner cannot answer; they are
+also revocable without touching the account password.
+
+Manual fallback (only when CI is unavailable): `npm publish --registry
+https://registry.npmjs.org` from a machine that is logged in. Note that a local
+`.npmrc` pointing at a mirror (e.g. `registry.npmmirror.com`) will make
+`npm publish` target the mirror, which does not accept uploads — always pass the
+registry explicitly.
+
 ## Reporting a bug
 
 Open an issue and include the output of:
