@@ -26,8 +26,13 @@ failure visible and testable.
 
 ## Before opening a PR
 
+Node **20 or newer** is required locally: `npm test` runs `node --test`, which
+does not exist in Node 16 and whose directory form is what CI uses. On a machine
+whose `node` is older (or whose only modern runtime is Electron's bundled one),
+point the runner at the test directory instead of the `npm` script.
+
 ```bash
-npm test            # must pass (locator, resolution chain, HTTP routes)
+npm test            # must pass (locator, resolution chain, HTTP routes, identity)
 npm run pack:check  # must pass (tarball contains every runtime file)
 ```
 
