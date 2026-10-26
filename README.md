@@ -19,14 +19,19 @@
 > ⚠️ **如果首次启动就失败**（对话框报 `web boot: 1 entry did not activate`），**先不要点**「禁用第三方插件、备份 profile patch 并重启」：那个按钮会把插件从 `dsh.profile.bundles` 里删掉、并重写 `cordis.patch.yml`，而且**不会真的留下备份文件**（文案与实际行为不符）。先对照下面的[排查表](#安装后没有背景)。
 
 ```bash
-# 1) 直接从 GitHub 安装
+# 1) 从 npm 安装（推荐，一条命令；npmjs 与 npmmirror 镜像均已同步）
+dsh plugin --profile desktop add dsh-wallpaper-diudiu
+
+# 2) 直接从 GitHub 安装（不经过 registry）
 dsh plugin --profile desktop add https://github.com/diudiu666/dsh-wallpaper
 
-# 2) 或先打包再装（离线机器、内网分发）
+# 3) 或先打包再装（离线机器、内网分发）
 git clone https://github.com/diudiu666/dsh-wallpaper && cd dsh-wallpaper
 npm pack                                  # -> dsh-wallpaper-diudiu-0.2.2.tgz
 dsh plugin --profile desktop add ./dsh-wallpaper-diudiu-0.2.2.tgz
 ```
+
+包的 npm 页面：<https://www.npmjs.com/package/dsh-wallpaper-diudiu>（发布者 `xiaodiu666`，与本仓库同一作者）。
 
 `dsh` 是 DSH Desktop 自带的 CLI：
 
