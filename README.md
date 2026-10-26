@@ -24,8 +24,8 @@ dsh plugin --profile desktop add https://github.com/diudiu666/dsh-wallpaper
 
 # 2) 或先打包再装（离线机器、内网分发）
 git clone https://github.com/diudiu666/dsh-wallpaper && cd dsh-wallpaper
-npm pack                                  # -> dsh-wallpaper-diudiu-0.2.1.tgz
-dsh plugin --profile desktop add ./dsh-wallpaper-diudiu-0.2.1.tgz
+npm pack                                  # -> dsh-wallpaper-diudiu-0.2.2.tgz
+dsh plugin --profile desktop add ./dsh-wallpaper-diudiu-0.2.2.tgz
 ```
 
 `dsh` 是 DSH Desktop 自带的 CLI：

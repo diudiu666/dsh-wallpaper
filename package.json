@@ -1,6 +1,6 @@
 {
   "name": "dsh-wallpaper-diudiu",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "为 DSH Desktop 注入自定义壁纸，并自动跟随 Wallpaper Engine：自动定位 Steam/WE（注册表 + libraryfolders.vdf + 常见路径 + macOS/Linux 布局）。Custom wallpaper for the DSH desktop shell, following Wallpaper Engine with automatic installation discovery.",
   "type": "module",
   "main": "./lib/index.js",

@@ -4,6 +4,30 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-10-24
+
+### Changed
+
+- **Plugin identity now matches the package name everywhere.** The server half
+  exported `name = "dsh-wallpaper"` (the old cordis row id) and the client
+  bundle's `exports.name` said the same. Both now report
+  `dsh-wallpaper-diudiu`, so diagnostics (`fiber.name`, status output, client
+  plugin registry labels) no longer show a name that resolves to nothing.
+  Neither value is a lookup key — the loader keys factories by the `id` passed
+  to `window.__ModuleLoader__.load`, and cordis keys plugins by the resolved
+  factory function — which is why 0.2.0 could boot at all with the old name.
+- Deliberately **not** renamed: the `/dsh-wallpaper/...` route prefix (public
+  API) and the `data-plugin="dsh-wallpaper"` DOM markers (internal selectors
+  that let an upgrade refresh the previous build's `<style>`/`<video>` in place
+  instead of stacking a second copy). Both are documented in code comments.
+
+### Added
+
+- `test/identity.test.js` asserts that `package.json#name`, the
+  `cordis.patch.yml` row's `name`, the server's exported `name`, the client
+  bundle's `exports.name`, and `lib/status.js` cannot drift apart again, and
+  that the row id stays `dsh-wallpaper`.
+
 ## [0.2.1] — 2026-10-24
 
 ### Fixed
