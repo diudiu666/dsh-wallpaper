@@ -142,6 +142,19 @@ test("serveVideo answers 416 for an unsatisfiable range", async () => {
 	assert.equal(res.headers.get("content-range"), "bytes */10");
 });
 
+test("serveVideo treats bytes=-N as the last N bytes", async () => {
+	const res = await fetch(videoBase, { headers: { range: "bytes=-4" } });
+	assert.equal(res.status, 206);
+	assert.equal(res.headers.get("content-range"), "bytes 6-9/10");
+	assert.equal(await res.text(), "6789");
+});
+
+test("serveVideo ignores a malformed range instead of answering 206", async () => {
+	const res = await fetch(videoBase, { headers: { range: "bytes=nope" } });
+	assert.equal(res.status, 200);
+	assert.equal(await res.text(), "0123456789");
+});
+
 test("no wallpaper configured: type says none and the image route explains itself", async () => {
 	rmSync(join(home, "wallpaper", "image.png"));
 	writeFileSync(join(home, "wallpaper", "config.json"), JSON.stringify({ weSync: false }));
