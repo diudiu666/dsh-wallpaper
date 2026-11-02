@@ -1,13 +1,20 @@
 # dsh-wallpaper-diudiu
 
+[![ci](https://github.com/diudiu666/dsh-wallpaper/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/diudiu666/dsh-wallpaper/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/dsh-wallpaper-diudiu.svg)](https://www.npmjs.com/package/dsh-wallpaper-diudiu)
+[![license](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
+[![node](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](package.json)
+
 给 **DSH Desktop** 加一张自定义背景壁纸：往桌面客户端注入一小段 CSS，把三栏面板改成半透明，让壁纸从窗口透出来；壁纸默认**自动跟随 Wallpaper Engine**（动态视频墙纸直接播、场景壁纸解包取高清静帧）。
+
+> 文档：[安装](#安装) · [排查](#安装后没有背景) · [配置](#配置) · [HTTP 路由](#http-路由) · [开发](#开发) · [参与贡献](CONTRIBUTING.md) · [变更日志](CHANGELOG.md) · [安全策略](SECURITY.md) · [行为准则](CODE_OF_CONDUCT.md)
 
 > ⚠️ **这不是 npm 上的 `dsh-wallpaper`。** 那个包（作者 `codeMonkey-Pine` / `mokeycoding`，Apache-2.0，TypeScript 实现）与本项目是两个独立项目，只是主题相同。本项目的包名是 `dsh-wallpaper-diudiu`，仓库是 <https://github.com/diudiu666/dsh-wallpaper>。
 
 ## 特性
 
 - **自动找 Wallpaper Engine**：不再假定 `C:\Program Files (x86)\Steam\...`——依次查注册表、Steam 的 `libraryfolders.vdf`（多盘/多库）、常见安装位置、macOS/Linux 布局（见[它怎么找 WE](#它怎么找-wallpaper-engine)）。
-- **跟随桌面壁纸**：视频墙纸（mp4/webm）直接内联播放并支持 seek；场景墙纸（`scene.pkg`）解包取 1929×1080 级别的高清静帧；图片墙纸原样使用；其它类型取 `preview.*` 封面。
+- **跟随桌面壁纸**：视频墙纸（mp4/webm）直接内联播放并支持 seek；场景墙纸（`scene.pkg`）解包取 1920×1080 级别的高清静帧；图片墙纸原样使用；其它类型取 `preview.*` 封面。
 - **四档透明度**：面板 / 表面 / 弹层 / 强调色分档（`--dsh-wallpaper-tint` 等），亮壁纸也能保证正文可读。
 - **失败可诊断**：`GET /dsh-wallpaper/status` 说明「找到了什么、试过什么、哪一步失败」，不用猜。
 - **零运行时依赖**：不引入任何 npm 包；可选能力（抽帧、解包）缺失时自动降级。
@@ -27,8 +34,8 @@ dsh plugin --profile desktop add https://github.com/diudiu666/dsh-wallpaper
 
 # 3) 或先打包再装（离线机器、内网分发）
 git clone https://github.com/diudiu666/dsh-wallpaper && cd dsh-wallpaper
-npm pack                                  # -> dsh-wallpaper-diudiu-0.2.2.tgz
-dsh plugin --profile desktop add ./dsh-wallpaper-diudiu-0.2.2.tgz
+npm pack                                  # -> dsh-wallpaper-diudiu-0.2.3.tgz
+dsh plugin --profile desktop add ./dsh-wallpaper-diudiu-0.2.3.tgz
 ```
 
 包的 npm 页面：<https://www.npmjs.com/package/dsh-wallpaper-diudiu>（发布者 `xiaodiu666`，与本仓库同一作者）。
@@ -59,6 +66,7 @@ curl http://127.0.0.1:<DSH 端口>/dsh-wallpaper/status
 | `we.found=true` 但没有背景 | WE 当前壁纸是 `exe` 类型（无静态素材） | 换视频/图片/场景壁纸，或手动 `image` |
 | 场景墙纸显示低清封面 | RePKG 解包失败（非 Windows / 文件损坏） | 看 `status.tools.scene`；换视频壁纸 |
 | 视频壁纸不播，只有静帧 | `videoLive:false`，或编码不被 Chromium 支持 | 改回 `videoLive:true`，或用 H.264 的 mp4 |
+| 视频壁纸停在某一帧，重启桌面端后也没有动画 | 0.2.2 及更早版本在桌面窗口还未显示时就开始播放；Chromium 的媒体管线会卡死（`paused=false`、整段已缓冲，但 `currentTime` 不再前进，`play()` 也不返回） | 升级到 ≥ 0.2.3；0.2.3 起等页面可见后才启动，并有停滞自动恢复 |
 | 文字看不清 | 壁纸偏亮 | 调大 `--dsh-wallpaper-tint`（见下） |
 | `config-we-path: MISS` | 你写的 `weConfigPath` 不存在 | 删掉该键走自动探测，或改成正确路径 |
 
@@ -134,9 +142,11 @@ curl http://127.0.0.1:<DSH 端口>/dsh-wallpaper/status
 ## 开发
 
 ```bash
-npm test            # node --test：定位器 / 解析链 / HTTP 路由 / 客户端 bundle 契约，27 个用例
+npm test            # node --test：定位器 / 解析链 / HTTP 路由 / 客户端 bundle 行为，38 个用例
 npm run pack:check  # 校验 npm pack 产物包含全部运行时文件
 ```
+
+`npm test` 直接运行 `node --test`（不带路径参数）：Node 20 不展开 glob，Node 22.7+ 又把目录参数当成模块路径，只有测试运行器的自动发现（`test/*.test.js`）在所有支持的版本和 shell 下都成立。CI 在 Ubuntu / Windows × Node 20 / 22 / 24 上跑同一套命令。
 
 单文件自检（不启动 DSH）：
 
@@ -161,7 +171,7 @@ lib/status.js   /status 诊断文档
 lib/config.js   配置读取与规范化
 ```
 
-贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，行为规范见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)，安全问题请走 [SECURITY.md](SECURITY.md) 的私密渠道；版本变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可
 
@@ -181,6 +191,7 @@ this project is `dsh-wallpaper-diudiu` and lives at
 <https://github.com/diudiu666/dsh-wallpaper>.
 
 ```bash
+dsh plugin --profile desktop add dsh-wallpaper-diudiu              # npm
 dsh plugin --profile desktop add https://github.com/diudiu666/dsh-wallpaper
 ```
 
@@ -196,3 +207,6 @@ a hard-coded `C:\Program Files (x86)\...`.
 
 License: BSD-3-Clause (bundled RePKG binary: MIT third-party components, see
 `scripts/repkg/THIRD-PARTY-NOTICES.txt`).
+
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Security: [SECURITY.md](SECURITY.md) ·
+Changelog: [CHANGELOG.md](CHANGELOG.md) · Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

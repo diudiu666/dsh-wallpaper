@@ -4,6 +4,10 @@ Thanks for helping. This plugin runs inside the DSH desktop shell, so a change
 that "works on my machine" is only half done — the other half is making the
 failure visible and testable.
 
+By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Please
+report security issues privately as described in [SECURITY.md](SECURITY.md)
+instead of opening a public issue.
+
 ## Ground rules
 
 1. **Zero runtime dependencies.** `package.json` has no `dependencies` and new
@@ -26,13 +30,14 @@ failure visible and testable.
 
 ## Before opening a PR
 
-Node **20 or newer** is required locally: `npm test` runs `node --test`, which
-does not exist in Node 16 and whose directory form is what CI uses. On a machine
-whose `node` is older (or whose only modern runtime is Electron's bundled one),
-point the runner at the test directory instead of the `npm` script.
+Node **20 or newer** is required locally: `npm test` runs `node --test` and the
+runner auto-discovers `test/**/*.test.js`. Do not pass a glob or a directory
+path: Node 20 cannot expand globs, Windows shells do not expand them for native
+commands, and Node 22.7+ rejects a directory argument. CI runs the same command
+on Node 20 / 22 / 24 × Ubuntu / Windows.
 
 ```bash
-npm test            # must pass (locator, resolution chain, HTTP routes, identity)
+npm test            # must pass (locator, resolution chain, HTTP routes, client bundle)
 npm run pack:check  # must pass (tarball contains every runtime file)
 ```
 
@@ -52,8 +57,8 @@ Publishing happens in CI (`.github/workflows/publish.yml`) so no credential ever
 sits in a working tree:
 
 1. Bump `version` in `package.json` and add a CHANGELOG entry in the same commit.
-2. Push that commit to `main`, then push a matching tag: `git tag v0.2.2 &&
-   git push origin v0.2.2`.
+2. Push that commit to `main`, then push a matching tag: `git tag v0.2.3 &&
+   git push origin v0.2.3`.
 3. The workflow re-runs the tests and the packaging guard, checks that the tag
    equals `package.json#version`, then runs `npm publish --provenance`.
 

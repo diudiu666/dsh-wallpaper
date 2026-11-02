@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # The package itself has no runtime dependencies, so only the actions used
+  # by the CI/publish workflows need watching.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore"
+    labels:
+      - "dependencies"

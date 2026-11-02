@@ -4,15 +4,23 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: node ${{ matrix.node }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node: [20, 22]
+        node: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
 
@@ -20,8 +28,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
+      # No path argument on purpose: Node 20 cannot expand globs, Windows
+      # shells do not expand them for native commands, and Node 22.7+ treats a
+      # directory argument as a module path. The test runner's default
+      # discovery (test/**/*.test.js) works on every supported version.
       - name: unit tests
-        run: node --test "test/*.test.js"
+        run: node --test
 
       - name: packaging guard
         run: node scripts/check-pack.mjs

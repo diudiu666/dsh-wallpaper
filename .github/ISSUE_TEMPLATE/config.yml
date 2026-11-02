@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安装与排查文档 / Install & troubleshooting
+    url: https://github.com/diudiu666/dsh-wallpaper#readme
+    about: 90% 的“没有背景 / 壁纸不动态”问题可以先在这里定位；报 issue 时请贴 /dsh-wallpaper/status 输出
+  - name: npm 包 / npm package
+    url: https://www.npmjs.com/package/dsh-wallpaper-diudiu
+    about: 版本、发布记录与安装方式

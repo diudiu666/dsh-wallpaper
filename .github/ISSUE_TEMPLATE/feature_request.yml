@@ -1,0 +1,55 @@
+name: Feature request
+description: 新壁纸类型、平台支持或配置项 / new wallpaper kind, platform or option
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先说明**要解决的使用场景**，而不是只给一个实现方案。
+        Describe the use case first; a proposed implementation is optional.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 现在卡在哪里 / the problem
+      description: 什么壁纸类型、屏幕布局或机器环境让插件做不到你想做的事？
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的行为 / expected behavior
+      description: 你希望看到什么？如果有实现思路也写在这里。
+    validations:
+      required: true
+
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本 / DSH version
+      placeholder: 0.2.1-rc.2
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统 / OS
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 已确认 / checked
+      options:
+        - label: 我读过 README 的排查表，确认这不是已有配置项能解决的
+          required: true
+        - label: 我明白项目坚持零运行时依赖，会接受“降级而不是加依赖”的方案
+          required: false

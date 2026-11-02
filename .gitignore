@@ -9,3 +9,13 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+.idea/
+.vscode/
+*.swp
+
+# 本地 npm 配置（可能含 registry token），永不入库
+.npmrc
+.npmrc.*
+
+# 测试覆盖率
+coverage/

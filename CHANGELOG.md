@@ -4,6 +4,50 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] — 2026-11-02
+
+### Fixed
+
+- **A video wallpaper could freeze on one frame.** The `<video>` was created
+  and `play()`ed while the DSH desktop window was still hidden (the window is
+  created hidden and shown after the page loads). Chromium's media pipeline
+  ended up wedged: `paused === false`, the whole file buffered, no error, but
+  `currentTime` stopped advancing (observed at 4.1 s on a 21 s clip) and the
+  `play()` promise never settled, so the desktop showed a still frame forever.
+  0.2.3 attaches the video only once `document.hidden` is false, replays it
+  when the page becomes visible again, and runs a 1 s watchdog that nudges
+  `currentTime` (and calls `play()`) after three ticks without progress. Scene
+  wallpapers still show one high-resolution still by design.
+- `serveVideo` now implements `bytes=-N` as the last N bytes (it used to serve
+  the first N+1 bytes) and ignores a malformed `Range` header with a normal 200
+  instead of a misleading full-body 206.
+- `npm test` and CI now run `node --test` with no path argument. Node 20 does
+  not expand globs, Windows shells do not expand them for native commands, and
+  Node 22.7+ treats a directory argument as a module path — so both previous
+  invocations (`node --test "test/*.test.js"` and `node --test test`) were
+  broken on at least one supported runtime. This is also why the CI badge had
+  been red.
+
+### Added
+
+- `test/video.test.js`: runs the real `lib/client.js` against a small fake DOM
+  and pins down deferred start, immediate start, stall recovery, and error
+  cleanup.
+- `SECURITY.md`, `CODE_OF_CONDUCT.md`, `.github/PULL_REQUEST_TEMPLATE.md`,
+  `.github/ISSUE_TEMPLATE/config.yml`, a feature-request form, a Dependabot
+  update for GitHub Actions, and `.editorconfig`.
+- README badges (CI, npm, license, Node) so a red CI run is visible at a glance.
+
+### Changed
+
+- CI: `permissions: contents: read`, cancel superseded runs, a 15-minute
+  timeout, and a Node 20 / 22 / 24 × Ubuntu / Windows matrix.
+- `package.json`: added the `author` field (the npm page had none).
+- README: test-count correction (36), a troubleshooting row for a frozen video,
+  and links to the changelog / contributing / security / conduct documents.
+- `.gitignore`: ignore local `.npmrc` files (they can contain a registry token)
+  and editor/coverage output.
+
 ## [0.2.2] — 2026-10-24
 
 ### Changed
