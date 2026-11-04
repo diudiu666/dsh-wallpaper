@@ -4,6 +4,38 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] — 2026-11-04
+
+### Fixed
+
+- **The Windows caption buttons (minimize / maximize / close) no longer cover
+  the wallpaper.** Those three buttons are native Electron `titleBarOverlay`
+  chrome, so their background is not painted by the page: the desktop preload
+  samples a hidden `<span>` whose inline style reads
+  `--dsw-specific-sidebar-fill`, converts that computed colour on a canvas and
+  forwards it to the main process over `dsh-desktop:windows-appearance`. Page
+  CSS could not reach that colour before, so the top-right corner stayed
+  opaque while the rest of the title-bar strip was translucent. The injected
+  stylesheet now forces that probe span transparent (the frame strip already
+  carries the veil), and Electron's non-opaque caption layer lets the 23%
+  `--dsh-wallpaper-tint` veil and the wallpaper show through, matching the
+  rest of the title bar. `test/client.test.js` pins the rule down.
+
+### Added
+
+- `scripts/patch-desktop-close.mjs` (deliberately **not** in the npm package)
+  and the `npm run patch:desktop-close` alias: rewrites the main window's
+  `close` handler inside `resources/app.asar` so the close button quits DSH
+  Desktop instead of hiding the window in the system tray. The rewrite is a
+  same-length in-place byte patch (asar header, entries and offsets untouched),
+  the untouched `lib/main.js` is backed up under
+  `<DSH_HOME>/wallpaper/desktop-close-backup/`, and the script supports
+  `--status` / `--revert` (verified byte-identical restore) and refuses to
+  patch an unrecognised DSH build. A DSH Desktop update replaces `app.asar`,
+  so the patch has to be re-applied after each update. Closing now takes the
+  normal quit path: no running tasks exits immediately, running tasks still
+  get the usual quit confirmation.
+
 ## [0.2.3] — 2026-11-02
 
 ### Fixed

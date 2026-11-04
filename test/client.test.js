@@ -38,3 +38,18 @@ test("the package points the harness at the bundle that registers", () => {
 		"the ./client export must resolve to lib/client.js, the file asserted above",
 	);
 });
+
+test("the native Windows caption buttons are forced transparent", () => {
+	// The desktop preload samples a hidden <span> whose inline style reads
+	// --dsw-specific-sidebar-fill, then forwards that computed colour to
+	// Electron's titleBarOverlay. Without the !important override the caption
+	// strip stays opaque and covers the wallpaper in the top-right corner.
+	assert.ok(
+		source.includes('"body > span[style*=\\"--dsw-specific-sidebar-fill\\"] {"'),
+		"lib/client.js must target the caption-colour probe span",
+	);
+	assert.ok(
+		source.includes('"  background-color: transparent !important;"'),
+		"the caption probe must be forced transparent",
+	);
+});

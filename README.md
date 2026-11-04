@@ -111,6 +111,14 @@ curl http://127.0.0.1:<DSH 端口>/dsh-wallpaper/status
 
 数值是塞进 `color-mix()` 的百分比，**必须带 `%`**。
 
+> Windows 的**最小化 / 最大化 / 关闭**是系统原生标题栏按钮（Electron 的 `titleBarOverlay`），
+> 不在页面 DOM 里，普通 CSS 够不到。桌面客户端会用一个隐藏 `<span>` 采样
+> `--dsw-specific-sidebar-fill` 再把它转给 Electron 当标题栏底色；插件把这个采样元素强制成
+> `transparent`，按钮区就和其他标题栏一样透出 23% 的面纱与壁纸，右上角不再是一块实色。
+> 浅色壁纸下如果觉得图标不够清楚，把 `lib/client.js` 里那条
+> `background-color: transparent !important` 换成
+> `color-mix(in srgb, var(--dsh-wallpaper-base) 40%, transparent) !important` 即可。
+
 ## 它怎么找 Wallpaper Engine
 
 `lib/locate.js` 按可信度逐个尝试，第一个命中的生效（`/status` 会告诉你命中的是哪一个）：
@@ -139,10 +147,28 @@ curl http://127.0.0.1:<DSH 端口>/dsh-wallpaper/status
 - **平台**：Windows 功能完整。macOS/Linux 能跑（CSS 与视频链路与平台无关），但 `scene.pkg` 解包依赖 Windows 版 RePKG，会降级为封面图；`/status` 里 `tools.scene` 会标 `unsupported-platform`。
 - **可选依赖**：`python` + `opencv-python`（mov/avi/mkv 抽帧）。缺了只是少一条路径，不会报错。
 
+### Windows：关闭按钮直接退出（可选，本地脚本）
+
+DSH Desktop 的关闭按钮默认是「隐藏到系统托盘」（首次会弹一次说明，可从托盘图标恢复）。
+这个分支在 Electron 主进程里，插件（页面半边 + Host 子进程半边）都碰不到，只能改
+`resources/app.asar`。仓库里带了一个可反复执行的同长度就地补丁脚本（**不打进 npm 包**）：
+
+```bash
+node scripts/patch-desktop-close.mjs            # 关闭 = 退出 DSH
+node scripts/patch-desktop-close.mjs --status   # 看当前是哪种
+node scripts/patch-desktop-close.mjs --revert   # 还原成最小化到托盘
+```
+
+- 只改 `lib/main.js` 里主窗口那一个 `close` 分支 → `app.quit()`，字节长度不变，asar 头、偏移、
+  integrity 字段都不动；
+- 原文件备份在 `<DSH_HOME>/wallpaper/desktop-close-backup/lib-main.js`，`--revert` 已验过能逐字节还原；
+- 关闭走正常退出流程：**没有任务时立即退出**，有任务在跑时仍是应用自己的「退出确认」弹窗；
+- **DSH Desktop 每次更新都会整包替换 `app.asar`，更新后要重跑一次**；脚本认不出目标语句时直接拒绝修改，不会改坏。
+
 ## 开发
 
 ```bash
-npm test            # node --test：定位器 / 解析链 / HTTP 路由 / 客户端 bundle 行为，38 个用例
+npm test            # node --test：定位器 / 解析链 / HTTP 路由 / 客户端 bundle 行为，39 个用例
 npm run pack:check  # 校验 npm pack 产物包含全部运行时文件
 ```
 
