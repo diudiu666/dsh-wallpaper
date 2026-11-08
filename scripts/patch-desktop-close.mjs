@@ -29,8 +29,15 @@
  *   node scripts/patch-desktop-close.mjs --revert   # restore the original
  *   node scripts/patch-desktop-close.mjs --asar <path\to\app.asar>
  *
+ * Without `--asar` the archive is located through the uninstall entry the
+ * installer writes (`InstallLocation`, then `DisplayIcon` / `UninstallString`),
+ * so an install on any drive — `D:\dsh` included — is found without a per-drive
+ * path list; conventional install directories are only the fallback.
+ * `DSH_DESKTOP_ASAR` overrides the whole search.
+ *
  * A DSH Desktop update replaces `app.asar`, so re-run this script afterwards.
  */
+import { execFileSync } from "node:child_process";
 import {
 	closeSync,
 	existsSync,
@@ -41,6 +48,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 const ENTRY_PATH = "lib/main.js";
 const MARKER = "/* dsh-wallpaper:close-quit */";
@@ -95,13 +103,114 @@ function dshHome() {
 	return process.env.DSH_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? ".", ".dsh");
 }
 
-function defaultAsar() {
+/* --------------------------------------------------.app.asar discovery (win) */
+
+/** Uninstall keys electron-builder writes: per-user first, then per-machine. */
+const UNINSTALL_KEYS = [
+	"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+	"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+	"HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+];
+
+const PRODUCT_NAME = "DeepSeek Harness";
+
+/** `reg query <args>`, or undefined when reg is unavailable or the key is absent. */
+function regQuery(args) {
+	try {
+		return execFileSync("reg", args, {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+			windowsHide: true,
+			maxBuffer: 16 * 1024 * 1024,
+		});
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Turn `reg query <uninstall key> /s` output into one record per subkey.
+ * A `HKEY_...` line starts a record; value lines read
+ * `    DisplayName    REG_SZ    DeepSeek Harness`.
+ */
+export function parseUninstallRecords(text) {
+	const records = [];
+	let current;
+	for (const raw of text.split(/\r?\n/u)) {
+		const line = raw.trim();
+		if (line === "") continue;
+		if (line.startsWith("HKEY_")) {
+			current = { key: line };
+			records.push(current);
+			continue;
+		}
+		if (current === undefined) continue;
+		const match = /^(\S+)\s+REG_[A-Z_]+\s+(.*)$/u.exec(line);
+		if (match !== null) current[match[1]] = match[2].trim();
+	}
+	return records;
+}
+
+/** The executable a registry value names: no quotes, no arguments, no `,0` icon index. */
+export function executableFromValue(value) {
+	if (typeof value !== "string") return undefined;
+	let text = value.trim().replace(/,\s*-?\d+$/u, "");
+	if (text.startsWith('"')) {
+		const end = text.indexOf('"', 1);
+		text = end > 0 ? text.slice(1, end) : text.slice(1);
+	} else {
+		const executable = /^.*?\.exe\b/iu.exec(text);
+		if (executable !== null) text = executable[0];
+	}
+	const trimmed = text.trim();
+	return trimmed === "" ? undefined : trimmed;
+}
+
+/** Install directories a product's uninstall records name, most direct first. */
+export function installDirsFromRecords(records, product = PRODUCT_NAME) {
+	const dirs = [];
+	for (const record of records) {
+		if (typeof record.DisplayName !== "string" || !record.DisplayName.includes(product)) continue;
+		const location = record.InstallLocation?.trim();
+		if (location !== undefined && location !== "") dirs.push(location);
+		for (const value of [record.DisplayIcon, record.UninstallString]) {
+			const executable = executableFromValue(value);
+			if (executable !== undefined) dirs.push(dirname(executable));
+		}
+	}
+	return dirs.filter((dir, index) => dirs.indexOf(dir) === index);
+}
+
+/**
+ * Candidate install directories, most authoritative first: the uninstall entry
+ * the installer writes (works on any drive), then the conventional locations.
+ * A generator so the search stops at the first archive that exists instead of
+ * querying every key.
+ */
+export function* installDirCandidates() {
+	if (process.platform === "win32") {
+		for (const key of UNINSTALL_KEYS) {
+			const text = regQuery(["query", key, "/s"]);
+			if (text === undefined) continue;
+			yield* installDirsFromRecords(parseUninstallRecords(text));
+		}
+	}
 	const local = process.env.LOCALAPPDATA ?? join(process.env.USERPROFILE ?? ".", "AppData", "Local");
-	const candidates = [
-		join(local, "Programs", "DeepSeek Harness", "resources", "app.asar"),
-		join(process.env.ProgramFiles ?? "C:\\Program Files", "DeepSeek Harness", "resources", "app.asar"),
-	];
-	return candidates.find((candidate) => existsSync(candidate));
+	yield join(local, "Programs", PRODUCT_NAME);
+	yield join(process.env.ProgramFiles ?? "C:\\Program Files", PRODUCT_NAME);
+	if (process.env["ProgramFiles(x86)"] !== undefined) {
+		yield join(process.env["ProgramFiles(x86)"], PRODUCT_NAME);
+	}
+}
+
+function defaultAsar() {
+	const explicit = process.env.DSH_DESKTOP_ASAR?.trim();
+	if (explicit !== undefined && explicit !== "") return explicit;
+	for (const dir of installDirCandidates()) {
+		const candidate = join(dir, "resources", "app.asar");
+		if (existsSync(candidate)) return candidate;
+	}
+	return undefined;
 }
 
 function backupPath() {
@@ -134,11 +243,16 @@ function main() {
 	const options = parseArgs(process.argv.slice(2));
 	if (options.action === "help") {
 		console.log("用法: node scripts/patch-desktop-close.mjs [--apply|--status|--revert] [--asar <app.asar>]");
+		console.log("不给 --asar 时按卸载注册表项定位 app.asar；也可用 DSH_DESKTOP_ASAR 直接指定。");
 		return 0;
 	}
 	const asarArg = options.asar ?? defaultAsar();
 	if (asarArg === undefined) {
-		console.error("找不到 DSH Desktop 的 app.asar（默认位置未命中）。\n用 --asar <路径> 指定，例如 \"C:\\Users\\<你>\\AppData\\Local\\Programs\\DeepSeek Harness\\resources\\app.asar\"。");
+		console.error(
+			"找不到 DSH Desktop 的 app.asar：注册表卸载项里没有 DeepSeek Harness，常见安装目录也没有命中。\n" +
+				"用 --asar <路径> 指定，或设置 DSH_DESKTOP_ASAR，例如：\n" +
+				'  node scripts/patch-desktop-close.mjs --asar "D:\\dsh\\resources\\app.asar"',
+		);
 		return 1;
 	}
 	const asar = resolve(asarArg);
@@ -226,9 +340,15 @@ function main() {
 	}
 }
 
-try {
-	process.exitCode = main();
-} catch (error) {
-	console.error(String(error?.stack ?? error));
-	process.exitCode = 1;
+const invokedDirectly =
+	process.argv[1] !== undefined &&
+	resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase();
+
+if (invokedDirectly) {
+	try {
+		process.exitCode = main();
+	} catch (error) {
+		console.error(String(error?.stack ?? error));
+		process.exitCode = 1;
+	}
 }

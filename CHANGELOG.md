@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] — 2026-11-08
+
+### Changed
+
+- **`scripts/patch-desktop-close.mjs` 不再假定安装位置。** 以前只探测
+  `%LOCALAPPDATA%\Programs\DeepSeek Harness` 与 `%ProgramFiles%`，把 DSH 装在
+  `D:\dsh` 这类非默认目录时永远不命中，只能每次手写 `--asar`。现在先读安装器写的
+  注册表卸载项——`InstallLocation`，再退回 `DisplayIcon` / `UninstallString`——
+  然后才回落到常见目录；`DSH_DESKTOP_ASAR` 可强制指定，`--asar` 仍然优先。
+  解析部分抽成纯函数（`parseUninstallRecords` / `executableFromValue` /
+  `installDirsFromRecords`），由 `test/desktop-close.test.js` 覆盖，不依赖本机
+  注册表。
+
 ## [0.2.4] — 2026-11-04
 
 ### Fixed

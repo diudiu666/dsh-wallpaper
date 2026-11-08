@@ -161,6 +161,9 @@ node scripts/patch-desktop-close.mjs --revert   # 还原成最小化到托盘
 
 - 只改 `lib/main.js` 里主窗口那一个 `close` 分支 → `app.quit()`，字节长度不变，asar 头、偏移、
   integrity 字段都不动；
+- 不传 `--asar` 也能找到目标：先读安装器写的注册表卸载项（`InstallLocation`，其次
+  `DisplayIcon` / `UninstallString`），再回落到常见安装目录，所以装在 `D:\dsh` 这类非默认盘
+  也能直接跑；`DSH_DESKTOP_ASAR` 可强制指定，`--asar` 优先级最高；
 - 原文件备份在 `<DSH_HOME>/wallpaper/desktop-close-backup/lib-main.js`，`--revert` 已验过能逐字节还原；
 - 关闭走正常退出流程：**没有任务时立即退出**，有任务在跑时仍是应用自己的「退出确认」弹窗；
 - **DSH Desktop 每次更新都会整包替换 `app.asar`，更新后要重跑一次**；脚本认不出目标语句时直接拒绝修改，不会改坏。
